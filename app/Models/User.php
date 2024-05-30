@@ -20,6 +20,11 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'username',
+        'phone_number',
+        'description',
+        'role',
+        'image',
     ];
 
     /**
@@ -43,5 +48,13 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function services() {
+        return $this->hasMany(Service::class);
+    }
+
+    public function wishlists() {
+        return $this->hasMany(Wishlist::class);
     }
 }

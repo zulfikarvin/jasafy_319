@@ -1,3 +1,0 @@
-import './bootstrap';
-
-//sweet alert

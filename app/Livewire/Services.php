@@ -10,6 +10,7 @@ use App\Livewire\CartManager;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Illuminate\Database\Eloquent\Builder;
 
 class Services extends Component
 {
@@ -18,21 +19,25 @@ class Services extends Component
     public $categoryId, $serviceId, $title, $description, $price, $location, $maps, $image;
     public $isModalOpen = false;
     public $isConfirming = false;
-    public $searchTerm;
+    public string $searchTerm = '';
 
     public function render()
     {
-        $services = Service::when($this->searchTerm, function ($query) {
-            $query
+        $services = Service::with('category')->when(
+            $this->searchTerm !== '',
+            fn(Builder $query) => $query
                 ->where('title', 'like', '%' . $this->searchTerm . '%')
-                // ->orWhere('category', 'like', '%' . $this->searchTerm . '%')
-                ->orWhere('location', 'like', '%' . $this->searchTerm . '%');
-        })->get();
+                ->orWhere('location', 'like', '%' . $this->searchTerm . '%')
+                ->orWhereHas('category', function (Builder $query) {
+                    $query->where('name', 'like', '%' . $this->searchTerm . '%');
+                }),
+        )->get();
+
         $categories = Category::all();
 
         return view('livewire.services', [
             'services' => $services,
-            'categories' => $categories
+            'categories' => $categories,
         ])->extends('layouts.app');
     }
 
@@ -58,6 +63,12 @@ class Services extends Component
         $this->serviceId = null;
     }
 
+    public function closeModal()
+    {
+        $this->isModalOpen = false;
+        $this->resetValidation();
+    }
+
     public function store()
     {
         $this->validate([
@@ -66,6 +77,7 @@ class Services extends Component
             'price' => 'required|numeric',
             'location' => 'required|string|max:255',
             'maps' => 'required|string|max:255',
+            'categoryId' => 'required|min:1',
             'image' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
@@ -96,6 +108,8 @@ class Services extends Component
             'price' => 'required|numeric',
             'location' => 'required|string|max:255',
             'maps' => 'required|string|max:255',
+            'categoryId' => 'required|min:1',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
         $service = Service::find($this->serviceId);
@@ -115,10 +129,6 @@ class Services extends Component
         ];
 
         if ($this->image) {
-            $this->validate([
-                'image' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
-            ]);
-
             if ($service->image && $service->image !== 'defaultService.jpg') {
                 Storage::delete('public/' . $service->image);
             }
@@ -141,7 +151,7 @@ class Services extends Component
         $this->location = $service->location;
         $this->categoryId = $service->category_id;
         $this->maps = $service->maps;
-        $this->image = null; // Clear image input to avoid confusion
+        $this->image = null;
     }
 
     public function delete($id)
